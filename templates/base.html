@@ -4,10 +4,16 @@
     <title>{% block title %}{{ title }}{% endblock %}</title>
     <link rel="stylesheet" href="/assets/styles.css" />
     <link rel="icon" href="data:,">
-    <script type="text/javascript" src="/assets/main.js" defer></script>
+    <script type="module" src="/assets/vendor/htmx.min.js" defer></script>
+    <script type="module" src="/assets/main.js" defer></script>
     {% block head %}{% endblock %}
 </head>
 <body>
+<nav>
+    <ul>
+        <li><a href="/">Home</a></li>
+    </ul>
+</nav>
 <div id="content">
     {% block content %}{% endblock %}
 </div>
