@@ -1,7 +1,14 @@
-import { Fretboard } from "./fretboard.js";
+import {Fretboard} from "./fretboard.js";
 
-const fretboardContainer = document.querySelector("#fretboard-container");
+const fbContainer = document.querySelector("#fretboard-container");
 
-if (fretboardContainer) {
-    const _fretboard = new Fretboard(fretboardContainer);
+function onClick(coord) {
+    console.log("clicked", coord);
+}
+
+if (fbContainer) {
+    const _fretboard = new Fretboard(
+        fbContainer,
+        {drawDotOnHover: true, onClick }
+    );
 }

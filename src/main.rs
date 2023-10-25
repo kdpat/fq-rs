@@ -3,7 +3,7 @@ mod routes;
 mod user;
 
 use askama_axum::Template;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Router;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
@@ -11,7 +11,7 @@ use std::net::SocketAddr;
 use tower_cookies::CookieManagerLayer;
 use tower_http::services::ServeDir;
 
-const PORT: u16 = 3030;
+const PORT: u16 = 4000;
 const DB_FILENAME: &str = "fq.db";
 
 #[tokio::main]
@@ -33,6 +33,7 @@ async fn main() {
         .route("/", get(routes::index_page))
         .route("/users/:id", get(routes::user_page))
         .route("/games/:id", get(routes::game_page))
+        .route("/games", post(routes::accept_game_create))
         .nest_service("/assets", assets_service)
         .layer(CookieManagerLayer::new())
         .with_state(pool);

@@ -1,7 +1,7 @@
 const DEFAULT_OPTS = {
     width: 200,
     height: 300,
-    startFret: 1,
+    startFret: 0,
     endFret: 4,
     stringNames: "EBGDAE".split(""),
     dots: [],
@@ -10,10 +10,11 @@ const DEFAULT_OPTS = {
     showFretNums: true,
     showStringNames: false,
     drawDotOnHover: false,
+    onClick: null,
 }
 
 export class Fretboard {
-    constructor(parent, userOpts = {}) {
+    constructor(parentElem, userOpts = {}) {
         this.opts = {...DEFAULT_OPTS, ...userOpts};
 
         this.xMargin = this.opts.width / this.numStrings;
@@ -22,16 +23,42 @@ export class Fretboard {
         this.neckHeight = this.opts.height - (this.yMargin * 2);
         this.fretHeight = this.neckHeight / this.numFrets;
         this.stringMargin = this.neckWidth / (this.numStrings - 1);
+        this.dotRadius = this.fretHeight / 6;
 
-        // this.dotRadius = this.fretHeight / 6;
+        this.hoverDot = null;
+        this.hoverCoord = null;
 
         this.svg = makeSvgElement(this.opts.width, this.opts.height);
         this.svg.style.border = "1px solid"
 
         this.addStrings();
         this.addFrets();
+        this.addDots();
 
-        parent.appendChild(this.svg);
+        if (this.opts.drawDotOnHover) {
+            this.svg.onmousemove = event => {
+                const coord = this.closestFretCoord(event);
+                if (this.coordEqual(coord, this.hoverCoord)) return;
+                this.hoverCoord = coord;
+                if (this.hoverDot) this.hoverDot.remove();
+                const dot = this.makeDot(coord.string, coord.fret, this.opts.hoverDotColor);
+                this.hoverDot = dot;
+                this.svg.appendChild(dot);
+            }
+        }
+
+        if (this.opts.onClick) {
+            this.svg.onclick = event => {
+                const coord = this.closestFretCoord(event);
+                this.opts.onClick(coord);
+            }
+        }
+        
+        parentElem.appendChild(this.svg);
+    }
+
+    coordEqual(pt1, pt2) {
+        return pt1 && pt2 && pt1.string === pt2.string && pt1.fret === pt2.fret;
     }
 
     addStrings() {
@@ -54,6 +81,58 @@ export class Fretboard {
         }
     }
 
+    addDots(){
+        for (const dot of this.opts.dots) {
+            const elem = this.makeDot(dot.string, dot.fret, dot.color);
+            this.svg.appendChild(elem);
+        }
+    }
+
+    makeDot(string, fret, color) {
+        const coord = this.fretCoord(string, fret);
+
+        let radius = this.dotRadius;
+        if (fret === 0) {
+            radius -= radius / 4;
+        }
+
+        return makeCircle(coord.x, coord.y, radius, color);
+    }
+
+    closestFretCoord(mouseEvent) {
+        const point = cursorPoint(this.svg, mouseEvent);
+        const x = point.x - this.xMargin;
+        const y = point.y - this.yMargin + (this.fretHeight / 2);
+
+        let string = Math.abs(Math.round(x / this.stringMargin) - this.numStrings);
+        if (string < 1) {
+            string = 1;
+        } else if (string > this.numStrings) {
+            string = this.numStrings;
+        }
+
+        let fret = Math.round(y / this.fretHeight);
+        if (fret > this.opts.endFret) {
+            fret = this.opts.endFret;
+        }
+
+        return {string, fret};
+    }
+
+    fretCoord(string, fret) {
+        const stringOffset = Math.abs(string - this.numStrings);
+
+        const x = (stringOffset * this.stringMargin) + this.xMargin;
+        let y = ((fret * this.fretHeight) - (this.fretHeight / 2)) + this.yMargin;
+
+        // place open string dots closer to the top of the fretboard
+        if (fret === 0) {
+            y += this.fretHeight / 5;
+        }
+
+        return { x, y };
+    }
+
     remove() {
         this.svg.remove();
     }
@@ -63,8 +142,21 @@ export class Fretboard {
     }
 
     get numFrets() {
-        return this.opts.endFret - this.opts.startFret + 1;
+        const offset = this.opts.startFret === 0 ? 0 : 1;
+        return this.opts.endFret - this.opts.startFret + offset;
     }
+}
+
+function cursorPoint(svgElem, mouseEvent) {
+    const point = svgElem.createSVGPoint();
+    point.x = mouseEvent.clientX;
+    point.y = mouseEvent.clientY;
+
+    const screenCTM = svgElem.getScreenCTM();
+    if (!screenCTM) throw new Error(`could not get the screen ctm of ${svgElem}`);
+
+    const matrix = screenCTM.inverse();
+    return point.matrixTransform(matrix);
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
