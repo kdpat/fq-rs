@@ -34,6 +34,11 @@ impl fmt::Display for Status {
     }
 }
 
+pub struct Settings {
+    start_fret: i32,
+    end_fret: i32,
+}
+
 const CREATE_GAMES_TABLE_SQL: &str = "CREATE TABLE IF NOT EXISTS games (
     id INTEGER PRIMARY KEY,
     host_id INTEGER,

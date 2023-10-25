@@ -1,8 +1,10 @@
+#![allow(dead_code)]
+
 mod game;
 mod routes;
+mod theory;
 mod user;
 
-use askama_axum::Template;
 use axum::routing::{get, post};
 use axum::Router;
 use sqlx::sqlite::SqliteConnectOptions;

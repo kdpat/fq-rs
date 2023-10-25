@@ -67,7 +67,7 @@ pub async fn game_page(
 fn get_user_cookie(cookies: &Cookies) -> Option<i64> {
     cookies
         .get(USER_COOKIE)
-        .map(|c| c.value().parse::<i64>().ok())
+        .map(|c| c.value().parse::<_>().ok())
         .flatten()
 }
 
