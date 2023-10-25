@@ -57,9 +57,9 @@ export class Fretboard {
 
   addFrets() {
     for (let i = 0; i <= this.numFrets; i++) {
-      const y = (i * this.fretHeight) + this.yMargin;
       const x1 = this.xMargin;
       const x2 = this.opts.width - this.xMargin;
+      const y = (i * this.fretHeight) + this.yMargin;
       const line = makeLine(x1, y, x2, y);
       this.svg.appendChild(line);
     }
@@ -81,26 +81,6 @@ export class Fretboard {
     }
 
     return makeCircle(coord.x, coord.y, radius, color);
-  }
-
-  closestFretCoord(mouseEvent) {
-    const point = cursorPoint(this.svg, mouseEvent);
-    const x = point.x - this.xMargin;
-    const y = point.y - this.yMargin + (this.fretHeight / 2);
-
-    let string = Math.abs(Math.round(x / this.stringMargin) - this.numStrings);
-    if (string < 1) {
-      string = 1;
-    } else if (string > this.numStrings) {
-      string = this.numStrings;
-    }
-
-    let fret = Math.round(y / this.fretHeight);
-    if (fret > this.opts.endFret) {
-      fret = this.opts.endFret;
-    }
-
-    return {string, fret};
   }
 
   remove() {
@@ -125,9 +105,11 @@ export class Fretboard {
     const coord = this.closestFretCoord(event);
     if (this.coordEqual(coord, this.hoverCoord)) return;
     this.hoverCoord = coord;
+
     if (this.hoverDot) this.hoverDot.remove();
     const dot = this.makeDot(coord.string, coord.fret, this.opts.hoverDotColor);
     this.hoverDot = dot;
+
     this.svg.appendChild(dot);
   }
 
@@ -143,6 +125,26 @@ export class Fretboard {
     }
 
     return {x, y};
+  }
+
+  closestFretCoord(mouseEvent) {
+    const point = cursorPoint(this.svg, mouseEvent);
+    const x = point.x - this.xMargin;
+    const y = point.y - this.yMargin + (this.fretHeight / 2);
+
+    let string = Math.abs(Math.round(x / this.stringMargin) - this.numStrings);
+    if (string < 1) {
+      string = 1;
+    } else if (string > this.numStrings) {
+      string = this.numStrings;
+    }
+
+    let fret = Math.round(y / this.fretHeight);
+    if (fret > this.opts.endFret) {
+      fret = this.opts.endFret;
+    }
+
+    return {string, fret};
   }
 
   coordEqual(c1, c2) {

@@ -1,3 +1,9 @@
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
+
+#[derive(Debug)]
 pub enum Accidental {
     DoubleFlat,
     Flat,
@@ -7,7 +13,7 @@ pub enum Accidental {
 }
 
 impl Accidental {
-    pub fn offset(&self) -> i32 {
+    pub fn semitone_offset(&self) -> i32 {
         match &self {
             Accidental::DoubleFlat => -2,
             Accidental::Flat => -1,
@@ -18,6 +24,19 @@ impl Accidental {
     }
 }
 
+impl Distribution<Accidental> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Accidental {
+        match rng.gen_range(0..5) {
+            0 => Accidental::DoubleFlat,
+            1 => Accidental::Flat,
+            2 => Accidental::Natural,
+            3 => Accidental::Sharp,
+            _ => Accidental::DoubleSharp,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum WhiteKey {
     C,
     D,
@@ -29,7 +48,7 @@ pub enum WhiteKey {
 }
 
 impl WhiteKey {
-    pub fn half_steps_from_c(&self) -> i32 {
+    pub fn semitones_from_c(&self) -> i32 {
         match &self {
             WhiteKey::C => 0,
             WhiteKey::D => 2,
@@ -42,15 +61,64 @@ impl WhiteKey {
     }
 }
 
+impl Distribution<WhiteKey> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> WhiteKey {
+        match rng.gen_range(0..7) {
+            0 => WhiteKey::C,
+            1 => WhiteKey::D,
+            2 => WhiteKey::E,
+            3 => WhiteKey::F,
+            4 => WhiteKey::G,
+            5 => WhiteKey::A,
+            _ => WhiteKey::B,
+        }
+    }
+}
+
+type Octave = i32;
+
+#[derive(Debug)]
 pub struct Note {
     white_key: WhiteKey,
     accidental: Accidental,
-    octave: i32,
+    octave: Octave,
 }
 
 // ("([A-Z])(#{1,2}|b{1,2})?(\\d)");
 
+impl Note {
+    fn pitch_class(&self) -> i32 {
+        self.white_key.semitones_from_c() + self.accidental.semitone_offset()
+    }
+
+    fn midi_num(&self) -> i32 {
+        self.pitch_class() + 12 * (self.octave + 1)
+    }
+
+    fn is_enharmonic_with(&self, other: Note) -> bool {
+        self.midi_num() == other.midi_num()
+    }
+}
+
+impl Distribution<Note> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Note {
+        Note {
+            white_key: rand::random(),
+            accidental: rand::random(),
+            octave: rng.gen_range(0..=9),
+        }
+    }
+}
+
 pub struct FretCoord {
     string: i32,
     fret: i32,
+}
+
+pub type Tuning = Vec<Note>;
+
+pub struct Fretboard {
+    tuning: Tuning,
+    start_fret: i32,
+    end_fret: i32,
 }

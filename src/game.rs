@@ -1,3 +1,4 @@
+use crate::theory;
 use sqlx::sqlite::SqliteQueryResult;
 use sqlx::{Error, Pool, Sqlite};
 use std::fmt;
@@ -35,8 +36,21 @@ impl fmt::Display for Status {
 }
 
 pub struct Settings {
+    num_rounds: i32,
     start_fret: i32,
     end_fret: i32,
+}
+
+pub struct Guess {
+    id: i64,
+    user_id: i64,
+    clicked_fret: theory::FretCoord,
+}
+
+pub struct Round {
+    id: i64,
+    note_to_guess: theory::Note,
+    guesses: Vec<Guess>,
 }
 
 const CREATE_GAMES_TABLE_SQL: &str = "CREATE TABLE IF NOT EXISTS games (
