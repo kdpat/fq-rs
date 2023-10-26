@@ -18,7 +18,7 @@ pub async fn create_db_pool(filename: &str) -> Result<Pool<Sqlite>, Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{create_db_pool, game, user};
+    use crate::{create_db_pool, game, theory, user};
 
     const TEST_DB_FILE: &str = "fq_test.db";
 
@@ -35,12 +35,19 @@ mod tests {
         // println!("{:?}", user);
 
         let game = game::Game::new(user_id);
-        println!("{:?}", game);
+        // println!("{:?}", game);
 
-        let (game_id, _) = game::insert_game(&pool, game).await.unwrap();
+        let game_id = game::insert_game(&pool, game).await.unwrap();
         let found_game = game::fetch_game(&pool, game_id).await.unwrap();
-        println!("found: {:?}", found_game);
+        // println!("found: {:?}", found_game);
 
-        assert!(true)
+        // let note: theory::Note = rand::random();
+        // println!("note: {:?}", note);
+
+        for _ in 0..10 {
+            println!("note: {:?}", theory::Note::rand_in_range(60, 62));
+        }
+
+        // assert_eq!(game, found_game);
     }
 }

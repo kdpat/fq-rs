@@ -33,7 +33,7 @@ impl Game {
     }
 }
 
-#[derive(Debug, sqlx::Type)]
+#[derive(Debug)]
 pub enum Status {
     Init,
     Playing,
@@ -160,7 +160,7 @@ pub async fn ensure_games_tables(pool: &Pool<Sqlite>) -> Result<(), Error> {
     tx.commit().await
 }
 
-pub async fn insert_game(pool: &Pool<Sqlite>, game: Game) -> Result<(i64, i64), Error> {
+pub async fn insert_game(pool: &Pool<Sqlite>, game: Game) -> Result<(i64), Error> {
     let mut tx = pool.begin().await?;
 
     let game_id = sqlx::query("INSERT INTO games (host_id, status) VALUES (?, ?);")
@@ -182,7 +182,7 @@ pub async fn insert_game(pool: &Pool<Sqlite>, game: Game) -> Result<(i64, i64), 
     .last_insert_rowid();
 
     tx.commit().await?;
-    Ok((game_id, settings_id))
+    Ok(game_id)
 }
 
 pub async fn fetch_game(pool: &Pool<Sqlite>, game_id: i64) -> Result<Game, Error> {

@@ -22,6 +22,17 @@ impl Accidental {
             Accidental::DoubleSharp => 2,
         }
     }
+
+    fn maybe_rand() -> Option<Accidental> {
+        let mut rng = rand::thread_rng();
+        let f: f64 = rng.gen();
+
+        if f < 0.33 {
+            None
+        } else {
+            Some(rand::random())
+        }
+    }
 }
 
 impl Distribution<Accidental> for Standard {
@@ -99,13 +110,25 @@ impl Note {
     fn is_enharmonic_with(&self, other: Note) -> bool {
         self.midi_num() == other.midi_num()
     }
+
+    pub fn rand_in_range(low_midi: i32, high_midi: i32) -> Note {
+        let mut note: Note = rand::random();
+        let mut midi: i32 = note.midi_num();
+
+        while midi < low_midi || midi > high_midi {
+            note = rand::random();
+            midi = note.midi_num();
+        }
+
+        note
+    }
 }
 
 impl Distribution<Note> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Note {
         Note {
             white_key: rand::random(),
-            accidental: rand::random(),
+            accidental: Accidental::maybe_rand(),
             octave: rng.gen_range(0..=9),
         }
     }
