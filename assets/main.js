@@ -5,14 +5,13 @@ let noteToDraw;
 
 const noteData = document.querySelector("#note-data");
 if (noteData) {
-  console.log("yes", noteData.dataset.note);
   noteToDraw = noteData.dataset.note;
 }
 
 const staffContainer = document.querySelector("#staff-container");
 if (staffContainer) {
   const staff = new Staff(staffContainer, 200, 130, noteToDraw);
-  // staffContainer.onclick = _ => staff.clear();
+  staffContainer.onclick = () => staff.clear();
 }
 
 const fbContainer = document.querySelector("#fretboard-container");

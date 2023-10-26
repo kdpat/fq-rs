@@ -4,9 +4,17 @@
 
 {% block content %}
 <h2>Game {{ id }}</h2>
+
 <div id="staff-container"></div>
 <div id="fretboard-container"></div>
-<p>Status: {{ status }}</p>
+
+<p id="game-status">Status: {{ status }}</p>
 <p>Note: {{ note }}</p>
+<p>Players IDs: {{ player_ids }}</p>
+
+<button>
+  Start Game
+</button>
+
 <div id="note-data" data-note="{{ note }}"></div>
 {% endblock %}

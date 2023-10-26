@@ -14,7 +14,7 @@ const DEFAULT_OPTS = {
 }
 
 export class Fretboard {
-  constructor(parentElem, userOpts = {}) {
+  constructor(parentEl, userOpts = {}) {
     this.opts = {...DEFAULT_OPTS, ...userOpts};
 
     this.xMargin = this.opts.width / this.numStrings;
@@ -42,7 +42,7 @@ export class Fretboard {
       this.svg.onclick = this.onClick.bind(this);
     }
 
-    parentElem.appendChild(this.svg);
+    parentEl.appendChild(this.svg);
   }
 
   addStrings() {
@@ -183,19 +183,6 @@ function makeCircle(cx, cy, r, color = 'white') {
   return circle;
 }
 
-function makeText(x, y, text, fontSize = 16) {
-  const textElem = document.createElementNS(SVG_NS, 'text');
-  textElem.setAttribute('x', x.toString());
-  textElem.setAttribute('y', y.toString());
-  textElem.setAttribute('text-anchor', 'middle');
-  textElem.setAttribute('font-size', fontSize.toString());
-
-  const textNode = document.createTextNode(text);
-  textElem.appendChild(textNode);
-
-  return textElem;
-}
-
 function cursorPoint(svgElem, mouseEvent) {
   const point = svgElem.createSVGPoint();
   point.x = mouseEvent.clientX;
@@ -207,3 +194,16 @@ function cursorPoint(svgElem, mouseEvent) {
   const matrix = screenCTM.inverse();
   return point.matrixTransform(matrix);
 }
+
+// function makeText(x, y, text, fontSize = 16) {
+//   const textElem = document.createElementNS(SVG_NS, 'text');
+//   textElem.setAttribute('x', x.toString());
+//   textElem.setAttribute('y', y.toString());
+//   textElem.setAttribute('text-anchor', 'middle');
+//   textElem.setAttribute('font-size', fontSize.toString());
+//
+//   const textNode = document.createTextNode(text);
+//   textElem.appendChild(textNode);
+//
+//   return textElem;
+// }
