@@ -13,7 +13,7 @@ pub enum Accidental {
 }
 
 impl Accidental {
-    pub fn semitone_offset(&self) -> i32 {
+    fn semitone_offset(&self) -> i32 {
         match &self {
             Accidental::DoubleFlat => -2,
             Accidental::Flat => -1,
@@ -79,16 +79,17 @@ type Octave = i32;
 
 #[derive(Debug)]
 pub struct Note {
-    white_key: WhiteKey,
-    accidental: Accidental,
-    octave: Octave,
+    pub white_key: WhiteKey,
+    pub octave: Octave,
+    pub accidental: Option<Accidental>,
 }
 
 // ("([A-Z])(#{1,2}|b{1,2})?(\\d)");
 
 impl Note {
     fn pitch_class(&self) -> i32 {
-        self.white_key.semitones_from_c() + self.accidental.semitone_offset()
+        let offset = &self.accidental.as_ref().map_or(0, |a| a.semitone_offset());
+        self.white_key.semitones_from_c() + offset
     }
 
     fn midi_num(&self) -> i32 {
@@ -110,6 +111,7 @@ impl Distribution<Note> for Standard {
     }
 }
 
+#[derive(Debug)]
 pub struct FretCoord {
     string: i32,
     fret: i32,
@@ -117,6 +119,7 @@ pub struct FretCoord {
 
 pub type Tuning = Vec<Note>;
 
+#[derive(Debug)]
 pub struct Fretboard {
     tuning: Tuning,
     start_fret: i32,

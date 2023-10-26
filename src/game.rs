@@ -1,21 +1,34 @@
 use crate::theory;
+use crate::theory::{Note, WhiteKey};
+use sqlx::query::Query;
 use sqlx::sqlite::SqliteQueryResult;
 use sqlx::{Error, Pool, Sqlite};
 use std::fmt;
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug)]
 pub struct Game {
-    pub id: i64,
-    pub host_id: i64,
+    pub id: Option<i64>,
+    pub host_id: Option<i64>,
     pub status: Status,
+    pub settings: Settings,
+    pub rounds: Vec<Round>,
 }
 
+const CREATE_GAMES_TABLE_SQL: &str = "CREATE TABLE IF NOT EXISTS games (
+    id INTEGER PRIMARY KEY,
+    host_id INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    FOREIGN KEY(host_id) REFERENCES users(id)
+);";
+
 impl Game {
-    pub fn new(&self, host_id: i64) -> Game {
+    pub fn new(host_id: i64) -> Game {
         Game {
-            id: 0,
-            host_id,
+            id: None,
+            host_id: Some(host_id),
             status: Status::Init,
+            settings: Settings::default(),
+            rounds: vec![],
         }
     }
 }
@@ -35,46 +48,134 @@ impl fmt::Display for Status {
     }
 }
 
+#[derive(Debug)]
 pub struct Settings {
+    id: Option<i64>,
+    game_id: Option<i64>,
     num_rounds: i32,
     start_fret: i32,
     end_fret: i32,
 }
 
-pub struct Guess {
-    id: i64,
-    user_id: i64,
-    clicked_fret: theory::FretCoord,
+const CREATE_SETTINGS_TABLE_SQL: &str = "CREATE TABLE IF NOT EXISTS settings (
+    id INTEGER PRIMARY KEY,
+    game_id INTEGER NOT NULL,
+    num_rounds INTEGER NOT NULL,
+    start_fret INTEGER NOT NULL,
+    end_fret INTEGER NOT NULL,
+    FOREIGN KEY(game_id) REFERENCES games(id)
+);";
+
+impl Settings {
+    fn default() -> Settings {
+        Settings {
+            id: None,
+            game_id: None,
+            num_rounds: 4,
+            start_fret: 0,
+            end_fret: 4,
+        }
+    }
 }
 
+#[derive(Debug)]
+pub struct Guess {
+    id: Option<i64>,
+    user_id: Option<i64>,
+    round_id: i64,
+    clicked_fret_coord: theory::FretCoord,
+    is_correct: bool,
+}
+
+const CREATE_GUESSES_TABLE_SQL: &str = "CREATE TABLE IF NOT EXISTS guesses (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    round_id INTEGER NOT NULL,
+    clicked_fret INTEGER NOT NULL,
+    clicked_string INTEGER NOT NULL,
+    is_correct INTEGER NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id),
+    FOREIGN KEY(round_id) REFERENCES rounds(id)
+);";
+
+#[derive(Debug)]
 pub struct Round {
-    id: i64,
-    note_to_guess: theory::Note,
+    id: Option<i64>,
+    note_to_guess: Note,
     guesses: Vec<Guess>,
 }
 
-const CREATE_GAMES_TABLE_SQL: &str = "CREATE TABLE IF NOT EXISTS games (
+const CREATE_ROUNDS_TABLE_SQL: &str = "CREATE TABLE IF NOT EXISTS rounds (
     id INTEGER PRIMARY KEY,
-    host_id INTEGER,
-    status TEXT NOT NULL,
-    FOREIGN KEY(host_id) REFERENCES users(id)
+    game_id INTEGER NOT NULL,
+    note_white_key TEXT NOT NULL,
+    note_accidental TEXT NOT NULL,
+    note_octave INTEGER NOT NULL,
+    FOREIGN KEY(game_id) REFERENCES games(id)
 );";
 
-pub async fn ensure_games_table(pool: &Pool<Sqlite>) -> Result<SqliteQueryResult, Error> {
-    sqlx::query(CREATE_GAMES_TABLE_SQL).execute(pool).await
+impl Round {
+    fn new() -> Round {
+        Round {
+            id: None,
+            note_to_guess: Note {
+                white_key: WhiteKey::C,
+                octave: 4,
+                accidental: None,
+            },
+            guesses: vec![],
+        }
+    }
 }
 
-pub async fn create_game(pool: &Pool<Sqlite>, host_id: i64) -> Result<SqliteQueryResult, Error> {
-    sqlx::query("INSERT INTO games (host_id, status) VALUES (?, ?)")
-        .bind(host_id)
-        .bind(Status::Init.to_string())
-        .execute(pool)
-        .await
+pub async fn ensure_games_tables(pool: &Pool<Sqlite>) -> Result<(), Error> {
+    let mut tx = pool.begin().await?;
+
+    sqlx::query(CREATE_GAMES_TABLE_SQL)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query(CREATE_SETTINGS_TABLE_SQL)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query(CREATE_ROUNDS_TABLE_SQL)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query(CREATE_GUESSES_TABLE_SQL)
+        .execute(&mut *tx)
+        .await?;
+
+    tx.commit().await
+}
+
+pub async fn insert_game(pool: &Pool<Sqlite>, game: Game) -> Result<(i64, i64), Error> {
+    let mut tx = pool.begin().await?;
+
+    let game_id = sqlx::query("INSERT INTO games (host_id, status) VALUES (?, ?);")
+        .bind(game.host_id)
+        .bind(game.status.to_string())
+        .execute(&mut *tx)
+        .await?
+        .last_insert_rowid();
+
+    let settings_id = sqlx::query(
+        "INSERT INTO SETTINGS (game_id, num_rounds, start_fret, end_fret) VALUES (?, ?, ?, ?);",
+    )
+    .bind(game_id)
+    .bind(game.settings.num_rounds)
+    .bind(game.settings.start_fret)
+    .bind(game.settings.end_fret)
+    .execute(&mut *tx)
+    .await?
+    .last_insert_rowid();
+
+    tx.commit().await?;
+    Ok((game_id, settings_id))
 }
 
 pub async fn fetch_game(pool: &Pool<Sqlite>, id: i64) -> Result<Game, Error> {
-    sqlx::query_as::<_, Game>("SELECT * FROM games WHERE id = ?")
-        .bind(id)
-        .fetch_one(pool)
-        .await
+    Err(sqlx::error::Error::WorkerCrashed)
+    // sqlx::query_as::<_, Game>("SELECT * FROM games WHERE id = ?")
+    //     .bind(id)
+    //     .fetch_one(pool)
+    //     .await
 }

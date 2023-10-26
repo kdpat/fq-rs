@@ -53,11 +53,15 @@ pub struct GameTemplate {
 
 pub async fn game_page(
     State(pool): State<Pool<Sqlite>>,
-    Path(id): Path<i64>,
+    Path(game_id): Path<i64>,
 ) -> Result<GameTemplate, StatusCode> {
-    match game::fetch_game(&pool, id).await {
-        Ok(Game { id, status, .. }) => Ok(GameTemplate {
-            id,
+    match game::fetch_game(&pool, game_id).await {
+        Ok(Game {
+            id: Some(id_val),
+            status,
+            ..
+        }) => Ok(GameTemplate {
+            id: id_val,
             status: status.to_string(),
         }),
         _ => Err(StatusCode::NOT_FOUND),
@@ -75,16 +79,17 @@ pub async fn accept_game_create(
     State(pool): State<Pool<Sqlite>>,
     cookies: Cookies,
 ) -> Result<impl IntoResponse, StatusCode> {
-    match get_user_cookie(&cookies) {
-        Some(user_id) => {
-            if let Ok(game_res) = game::create_game(&pool, user_id).await {
-                let game_id = game_res.last_insert_rowid();
-                let game_url = format!("/games/{}", game_id);
-                Ok(Redirect::to(game_url.as_str()))
-            } else {
-                Err(StatusCode::INTERNAL_SERVER_ERROR)
-            }
-        }
-        _ => Err(StatusCode::EXPECTATION_FAILED),
-    }
+    Ok("yep")
+    // match get_user_cookie(&cookies) {
+    //     Some(user_id) => {
+    //         if let Ok(game_res) = game::create_game(&pool, user_id).await {
+    //             let game_id = game_res.last_insert_rowid();
+    //             let game_url = format!("/games/{}", game_id);
+    //             Ok(Redirect::to(game_url.as_str()))
+    //         } else {
+    //             Err(StatusCode::INTERNAL_SERVER_ERROR)
+    //         }
+    //     }
+    //     _ => Err(StatusCode::EXPECTATION_FAILED),
+    // }
 }

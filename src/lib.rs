@@ -1,8 +1,7 @@
-#![allow(dead_code)]
+#![allow(unused)]
 
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{Error, Pool, Sqlite, SqlitePool};
-use tower_http::services::ServeDir;
 
 pub mod game;
 pub mod routes;
@@ -17,16 +16,28 @@ pub async fn create_db_pool(filename: &str) -> Result<Pool<Sqlite>, Error> {
     SqlitePool::connect_with(opts).await
 }
 
-pub async fn create_assets_service() -> ServeDir {
-    let cwd = std::env::current_dir().unwrap();
-    let assets_path = format!("{}/assets", cwd.to_str().unwrap());
-    ServeDir::new(assets_path)
-}
+#[cfg(test)]
+mod tests {
+    use crate::{create_db_pool, game, user};
 
-// #[cfg(test)]
-// mod tests {
-//     #[test]
-//     fn hmm() {
-//         assert!(true)
-//     }
-// }
+    const TEST_DB_FILE: &str = "fq_test.db";
+
+    #[tokio::test]
+    async fn create_user_and_game() {
+        let pool = create_db_pool(TEST_DB_FILE).await.unwrap();
+        user::ensure_users_table(&pool).await.unwrap();
+        game::ensure_games_tables(&pool).await.unwrap();
+
+        let user_res = user::create_user(&pool).await.unwrap();
+        let user_id = user_res.last_insert_rowid();
+
+        let user = user::fetch_user(&pool, user_id).await.unwrap();
+        println!("{:?}", user);
+
+        let game = game::Game::new(user_id);
+        println!("{:?}", game);
+        let (game_id, settings_id) = game::insert_game(&pool, game).await.unwrap();
+
+        assert!(true)
+    }
+}
