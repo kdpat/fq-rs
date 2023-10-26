@@ -55,17 +55,18 @@ pub async fn game_page(
     State(pool): State<Pool<Sqlite>>,
     Path(game_id): Path<i64>,
 ) -> Result<GameTemplate, StatusCode> {
-    match game::fetch_game(&pool, game_id).await {
-        Ok(Game {
-            id: Some(id_val),
-            status,
-            ..
-        }) => Ok(GameTemplate {
-            id: id_val,
-            status: status.to_string(),
-        }),
-        _ => Err(StatusCode::NOT_FOUND),
-    }
+    Err(StatusCode::NOT_FOUND)
+    // match game::fetch_game(&pool, game_id).await {
+    //     Ok(Game {
+    //         id: Some(id_val),
+    //         status,
+    //         ..
+    //     }) => Ok(GameTemplate {
+    //         id: id_val,
+    //         status: status.to_string(),
+    //     }),
+    //     _ => Err(StatusCode::NOT_FOUND),
+    // }
 }
 
 fn get_user_cookie(cookies: &Cookies) -> Option<i64> {

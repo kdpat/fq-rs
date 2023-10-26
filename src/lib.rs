@@ -32,11 +32,14 @@ mod tests {
         let user_id = user_res.last_insert_rowid();
 
         let user = user::fetch_user(&pool, user_id).await.unwrap();
-        println!("{:?}", user);
+        // println!("{:?}", user);
 
         let game = game::Game::new(user_id);
         println!("{:?}", game);
-        let (game_id, settings_id) = game::insert_game(&pool, game).await.unwrap();
+
+        let (game_id, _) = game::insert_game(&pool, game).await.unwrap();
+        let found_game = game::fetch_game(&pool, game_id).await.unwrap();
+        println!("found: {:?}", found_game);
 
         assert!(true)
     }

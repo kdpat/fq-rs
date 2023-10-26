@@ -1,8 +1,8 @@
 use crate::theory;
 use crate::theory::{Note, WhiteKey};
 use sqlx::query::Query;
-use sqlx::sqlite::SqliteQueryResult;
-use sqlx::{Error, Pool, Sqlite};
+use sqlx::sqlite::{SqliteQueryResult, SqliteRow};
+use sqlx::{Acquire, Error, Pool, Row, Sqlite};
 use std::fmt;
 
 #[derive(Debug)]
@@ -40,6 +40,19 @@ pub enum Status {
     RoundOver,
     GameOver,
     NoPlayers,
+}
+
+impl Status {
+    fn from(s: &str) -> Option<Status> {
+        match s {
+            "Init" => Some(Status::Init),
+            "Playing" => Some(Status::Playing),
+            "RoundOver" => Some(Status::RoundOver),
+            "GameOver" => Some(Status::GameOver),
+            "NoPlayers" => Some(Status::NoPlayers),
+            _ => None,
+        }
+    }
 }
 
 impl fmt::Display for Status {
@@ -172,10 +185,31 @@ pub async fn insert_game(pool: &Pool<Sqlite>, game: Game) -> Result<(i64, i64), 
     Ok((game_id, settings_id))
 }
 
-pub async fn fetch_game(pool: &Pool<Sqlite>, id: i64) -> Result<Game, Error> {
-    Err(sqlx::error::Error::WorkerCrashed)
-    // sqlx::query_as::<_, Game>("SELECT * FROM games WHERE id = ?")
-    //     .bind(id)
-    //     .fetch_one(pool)
-    //     .await
+pub async fn fetch_game(pool: &Pool<Sqlite>, game_id: i64) -> Result<Game, Error> {
+    let mut conn = pool.acquire().await.unwrap();
+
+    let settings = sqlx::query("SELECT * FROM settings WHERE game_id = ?")
+        .bind(game_id)
+        .map(|row: SqliteRow| Settings {
+            id: Some(row.get::<i64, _>("id")),
+            game_id: Some(game_id),
+            num_rounds: row.get::<i32, _>("num_rounds"),
+            start_fret: row.get::<i32, _>("start_fret"),
+            end_fret: row.get::<i32, _>("end_fret"),
+        })
+        .fetch_one(&mut *conn)
+        .await
+        .unwrap();
+
+    sqlx::query("SELECT * FROM games where id = ?")
+        .bind(game_id)
+        .fetch_one(&mut *conn)
+        .await
+        .map(|row: SqliteRow| Game {
+            id: Some(game_id),
+            host_id: Some(row.get::<i64, _>("host_id")),
+            status: Status::from(row.get::<String, _>("status").as_str()).unwrap(),
+            settings,
+            rounds: vec![],
+        })
 }
