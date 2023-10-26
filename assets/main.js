@@ -1,15 +1,21 @@
 import {Staff} from "./staff.js";
 import {Fretboard} from "./fretboard.js";
 
-const staffContainer = document.querySelector("#staff-container");
+let noteToDraw;
 
+const noteData = document.querySelector("#note-data");
+if (noteData) {
+  console.log("yes", noteData.dataset.note);
+  noteToDraw = noteData.dataset.note;
+}
+
+const staffContainer = document.querySelector("#staff-container");
 if (staffContainer) {
-  const _staff = new Staff(staffContainer, 200, 130);
+  const staff = new Staff(staffContainer, 200, 130, noteToDraw);
   // staffContainer.onclick = _ => staff.clear();
 }
 
 const fbContainer = document.querySelector("#fretboard-container");
-
 if (fbContainer) {
   new Fretboard(fbContainer, {drawDotOnHover: true, onClick: onFbClick});
 }

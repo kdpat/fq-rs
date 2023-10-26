@@ -39,14 +39,17 @@ mod tests {
 
         let game_id = game::insert_game(&pool, game).await.unwrap();
         let found_game = game::fetch_game(&pool, game_id).await.unwrap();
-        // println!("found: {:?}", found_game);
+        println!("found: {:?}", found_game);
 
         // let note: theory::Note = rand::random();
-        // println!("note: {:?}", note);
+        // println!("note: {:?}", note.string_repr());
 
-        for _ in 0..10 {
-            println!("note: {:?}", theory::Note::rand_in_range(60, 62));
-        }
+        // for _ in 0..10 {
+        //     println!(
+        //         "note: {:?}",
+        //         theory::Note::rand_in_range(60, 62).string_repr()
+        //     );
+        // }
 
         // assert_eq!(game, found_game);
     }

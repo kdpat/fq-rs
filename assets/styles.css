@@ -3,17 +3,19 @@
 /*    text-align: center;*/
 /*}*/
 
-/*#staff-container {*/
-/*    border: 1px solid green;*/
-/*}*/
+#staff-container {
+    /*border: 1px solid green;*/
+    min-height: 134px;
+}
 
 /*#staff-container svg {*/
 /*    border: 1px solid blue;*/
 /*}*/
 
-/*#fretboard-container {*/
-/*    border: 1px solid green;*/
-/*}*/
+#fretboard-container {
+    /*border: 1px solid green;*/
+    min-height: 304px;
+}
 
 /*#fretboard-container svg {*/
 /*    border: 1px solid blue;*/

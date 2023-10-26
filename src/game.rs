@@ -1,5 +1,5 @@
 use crate::theory;
-use crate::theory::{Note, WhiteKey};
+use crate::theory::{Accidental, FretCoord, Note, WhiteKey};
 use sqlx::query::Query;
 use sqlx::sqlite::{SqliteQueryResult, SqliteRow};
 use sqlx::{Acquire, Error, Pool, Row, Sqlite};
@@ -10,7 +10,8 @@ pub struct Game {
     pub id: Option<i64>,
     pub host_id: Option<i64>,
     pub status: Status,
-    pub settings: Settings,
+    pub player_ids: Vec<i64>,
+    pub opts: Opts,
     pub rounds: Vec<Round>,
 }
 
@@ -27,8 +28,9 @@ impl Game {
             id: None,
             host_id: Some(host_id),
             status: Status::Init,
-            settings: Settings::default(),
+            opts: Opts::new(),
             rounds: vec![],
+            player_ids: vec![host_id],
         }
     }
 }
@@ -62,7 +64,7 @@ impl fmt::Display for Status {
 }
 
 #[derive(Debug)]
-pub struct Settings {
+pub struct Opts {
     id: Option<i64>,
     game_id: Option<i64>,
     num_rounds: i32,
@@ -79,9 +81,9 @@ const CREATE_SETTINGS_TABLE_SQL: &str = "CREATE TABLE IF NOT EXISTS settings (
     FOREIGN KEY(game_id) REFERENCES games(id)
 );";
 
-impl Settings {
-    fn default() -> Settings {
-        Settings {
+impl Opts {
+    fn new() -> Opts {
+        Opts {
             id: None,
             game_id: None,
             num_rounds: 4,
@@ -131,15 +133,17 @@ impl Round {
     fn new() -> Round {
         Round {
             id: None,
-            note_to_guess: Note {
-                white_key: WhiteKey::C,
-                octave: 4,
-                accidental: None,
-            },
+            note_to_guess: Note::rand_in_range(40, 68),
             guesses: vec![],
         }
     }
 }
+
+const CREATE_PLAYERS_TABLE_SQL: &str = "CREATE TABLE IF NOT EXISTS players (
+    game_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    UNIQUE(game_id, user_id)
+);";
 
 pub async fn ensure_games_tables(pool: &Pool<Sqlite>) -> Result<(), Error> {
     let mut tx = pool.begin().await?;
@@ -147,13 +151,20 @@ pub async fn ensure_games_tables(pool: &Pool<Sqlite>) -> Result<(), Error> {
     sqlx::query(CREATE_GAMES_TABLE_SQL)
         .execute(&mut *tx)
         .await?;
+
     sqlx::query(CREATE_SETTINGS_TABLE_SQL)
         .execute(&mut *tx)
         .await?;
+
     sqlx::query(CREATE_ROUNDS_TABLE_SQL)
         .execute(&mut *tx)
         .await?;
+
     sqlx::query(CREATE_GUESSES_TABLE_SQL)
+        .execute(&mut *tx)
+        .await?;
+
+    sqlx::query(CREATE_PLAYERS_TABLE_SQL)
         .execute(&mut *tx)
         .await?;
 
@@ -170,27 +181,32 @@ pub async fn insert_game(pool: &Pool<Sqlite>, game: Game) -> Result<(i64), Error
         .await?
         .last_insert_rowid();
 
-    let settings_id = sqlx::query(
+    sqlx::query(
         "INSERT INTO SETTINGS (game_id, num_rounds, start_fret, end_fret) VALUES (?, ?, ?, ?);",
     )
     .bind(game_id)
-    .bind(game.settings.num_rounds)
-    .bind(game.settings.start_fret)
-    .bind(game.settings.end_fret)
+    .bind(game.opts.num_rounds)
+    .bind(game.opts.start_fret)
+    .bind(game.opts.end_fret)
     .execute(&mut *tx)
-    .await?
-    .last_insert_rowid();
+    .await?;
+
+    sqlx::query("INSERT INTO PLAYERS (game_id, user_id) VALUES (?, ?);")
+        .bind(game_id)
+        .bind(game.host_id)
+        .execute(&mut *tx)
+        .await?;
 
     tx.commit().await?;
     Ok(game_id)
 }
 
 pub async fn fetch_game(pool: &Pool<Sqlite>, game_id: i64) -> Result<Game, Error> {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = pool.acquire().await?;
 
-    let settings = sqlx::query("SELECT * FROM settings WHERE game_id = ?")
+    let opts = sqlx::query("SELECT * FROM settings WHERE game_id = ?")
         .bind(game_id)
-        .map(|row: SqliteRow| Settings {
+        .map(|row: SqliteRow| Opts {
             id: Some(row.get::<i64, _>("id")),
             game_id: Some(game_id),
             num_rounds: row.get::<i32, _>("num_rounds"),
@@ -198,8 +214,60 @@ pub async fn fetch_game(pool: &Pool<Sqlite>, game_id: i64) -> Result<Game, Error
             end_fret: row.get::<i32, _>("end_fret"),
         })
         .fetch_one(&mut *conn)
-        .await
-        .unwrap();
+        .await?;
+
+    let player_ids = sqlx::query("SELECT * FROM players WHERE game_id = ?")
+        .bind(game_id)
+        .map(|row: SqliteRow| row.get::<i64, _>("user_id"))
+        .fetch_all(&mut *conn)
+        .await?;
+
+    let mut rounds = sqlx::query("SELECT * from rounds WHERE game_id = ?")
+        .bind(game_id)
+        .map(|row: SqliteRow| {
+            let accidental = row
+                .get::<Option<&str>, _>("note_octave")
+                .map(|s| Accidental::from(s))
+                .flatten();
+
+            let note_to_guess = Note {
+                white_key: WhiteKey::from(row.get::<&str, _>("note_white_key")).unwrap(),
+                octave: row.get::<i32, _>("note_octave"),
+                accidental,
+            };
+
+            Round {
+                id: Some(row.get::<i64, _>("round_id")),
+                note_to_guess,
+                guesses: vec![],
+            }
+        })
+        .fetch_all(&mut *conn)
+        .await?;
+
+    for r in rounds.iter_mut() {
+        let round_id = r.id.unwrap();
+
+        let guesses = sqlx::query("SELECT * from guesses WHERE round_id = ?")
+            .bind(round_id)
+            .map(|row: SqliteRow| {
+                let fret = row.get::<i32, _>("clicked_fret");
+                let string = row.get::<i32, _>("clicked_string");
+                let clicked_fret_coord = FretCoord { fret, string };
+
+                Guess {
+                    id: Some(row.get::<i64, _>("id")),
+                    user_id: Some(row.get::<i64, _>("user_id")),
+                    round_id,
+                    clicked_fret_coord,
+                    is_correct: row.get::<bool, _>("is_correct"),
+                }
+            })
+            .fetch_all(&mut *conn)
+            .await?;
+
+        r.guesses = guesses;
+    }
 
     sqlx::query("SELECT * FROM games where id = ?")
         .bind(game_id)
@@ -208,8 +276,15 @@ pub async fn fetch_game(pool: &Pool<Sqlite>, game_id: i64) -> Result<Game, Error
         .map(|row: SqliteRow| Game {
             id: Some(game_id),
             host_id: Some(row.get::<i64, _>("host_id")),
-            status: Status::from(row.get::<String, _>("status").as_str()).unwrap(),
-            settings,
-            rounds: vec![],
+            status: Status::from(row.get::<&str, _>("status")).unwrap(),
+            opts,
+            player_ids,
+            rounds,
         })
 }
+
+// "SELECT r.id as round_id, r.note_white_key, r.note_accidental, r.note_octave,
+//  g.id as guess_id, g.user_id, g.clicked_fret, g.clicked_string, g.is_correct
+//  FROM rounds r
+//  JOIN guesses g on r.id = g.round_id
+//  WHERE r.game_id = ?")

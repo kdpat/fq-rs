@@ -2,6 +2,7 @@ use rand::{
     distributions::{Distribution, Standard},
     Rng,
 };
+use std::fmt;
 
 #[derive(Debug)]
 pub enum Accidental {
@@ -27,10 +28,31 @@ impl Accidental {
         let mut rng = rand::thread_rng();
         let f: f64 = rng.gen();
 
-        if f < 0.33 {
+        if f < 0.4 {
             None
         } else {
             Some(rand::random())
+        }
+    }
+
+    fn string_repr(&self) -> &str {
+        match &self {
+            Accidental::DoubleFlat => "bb",
+            Accidental::Flat => "b",
+            Accidental::Natural => "n",
+            Accidental::Sharp => "#",
+            Accidental::DoubleSharp => "##",
+        }
+    }
+
+    pub fn from(s: &str) -> Option<Accidental> {
+        match s {
+            "bb" => Some(Accidental::DoubleFlat),
+            "b" => Some(Accidental::Flat),
+            "n" => Some(Accidental::Natural),
+            "#" => Some(Accidental::Sharp),
+            "##" => Some(Accidental::DoubleSharp),
+            _ => None,
         }
     }
 }
@@ -59,7 +81,7 @@ pub enum WhiteKey {
 }
 
 impl WhiteKey {
-    pub fn semitones_from_c(&self) -> i32 {
+    fn semitones_from_c(&self) -> i32 {
         match &self {
             WhiteKey::C => 0,
             WhiteKey::D => 2,
@@ -69,6 +91,25 @@ impl WhiteKey {
             WhiteKey::A => 9,
             WhiteKey::B => 11,
         }
+    }
+
+    pub fn from(s: &str) -> Option<WhiteKey> {
+        match s {
+            "C" => Some(WhiteKey::C),
+            "D" => Some(WhiteKey::D),
+            "E" => Some(WhiteKey::E),
+            "F" => Some(WhiteKey::F),
+            "G" => Some(WhiteKey::G),
+            "A" => Some(WhiteKey::A),
+            "B" => Some(WhiteKey::B),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for WhiteKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 
@@ -122,6 +163,15 @@ impl Note {
 
         note
     }
+
+    pub fn string_repr(&self) -> String {
+        format!(
+            "{}{}/{}",
+            self.white_key.to_string(),
+            self.accidental.as_ref().map_or("", |a| a.string_repr()),
+            self.octave.to_string()
+        )
+    }
 }
 
 impl Distribution<Note> for Standard {
@@ -136,8 +186,8 @@ impl Distribution<Note> for Standard {
 
 #[derive(Debug)]
 pub struct FretCoord {
-    string: i32,
-    fret: i32,
+    pub string: i32,
+    pub fret: i32,
 }
 
 pub type Tuning = Vec<Note>;

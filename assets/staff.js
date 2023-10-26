@@ -1,32 +1,37 @@
 const VF = Vex.Flow;
 
+const NOTE_REGEX = /[A-G](#{1,2}|b{1,2}|n)?/;
+
+function getAccidental(noteName) {
+  const [_, acc] = noteName.match(NOTE_REGEX);
+  return acc;
+}
+
 export class Staff {
-  constructor(parentEl, width, height) {
+  constructor(parentEl, width, height, noteName) {
     this.renderer = new VF.Renderer(parentEl, VF.Renderer.Backends.SVG);
     this.renderer.resize(width, height);
 
     this.context = this.renderer.getContext();
 
-    const stave = new VF.Stave(0, 0, width-1)
-      .addClef("treble")
+    const stave = new VF.Stave(0, 0, width - 1)
       .setContext(this.context);
 
     const note = new VF.StaveNote({
-      keys:["E/3"],
-      duration: "w",
-    });
+      keys: [noteName], duration: "w", align_center: true,
+    })
+      .setStave(stave);
 
-    note.setStave(stave);
+    const acc = getAccidental(noteName);
+    if (acc) {
+      note.addModifier(new VF.Accidental(acc));
+    }
 
-    const tc = new VF.TickContext();
-    note.setTickContext(tc);
-    tc.setX(width / 4);
+    stave.addClef("treble").draw();
 
     this.noteGroup = this.context.openGroup();
-    note.draw();
+    VF.Formatter.FormatAndDraw(this.context, stave, [note]);
     this.context.closeGroup();
-
-    stave.draw();
   }
 
   clear() {
