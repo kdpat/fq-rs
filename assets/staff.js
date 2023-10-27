@@ -5,6 +5,7 @@ const NOTE_ACC_REGEX = /[A-G](#{1,2}|b{1,2}|n)?/;
 /**
  * getAccidental("C/4") === undefined;
  * getAccidental("C##/4") === "##";
+ * getAccidental("Dn/5")=== "n";
  */
 function getAccidental(noteName) {
   const [_, acc] = noteName.match(NOTE_ACC_REGEX);
@@ -17,7 +18,7 @@ export class Staff {
     this.renderer.resize(width, height);
     this.context = this.renderer.getContext();
 
-    const stave = new VF.Stave(0, 0, width - 1)
+    const stave = new VF.Stave(0, 0, width-1)
       .setContext(this.context)
       .addClef("treble")
       .draw();

@@ -28,7 +28,7 @@ impl Accidental {
         let mut rng = rand::thread_rng();
         let f: f64 = rng.gen();
 
-        if f < 0.4 {
+        if f < 0.5 {
             None
         } else {
             Some(rand::random())
@@ -167,9 +167,9 @@ impl Note {
     pub fn string_repr(&self) -> String {
         format!(
             "{}{}/{}",
-            self.white_key.to_string(),
+            self.white_key,
             self.accidental.as_ref().map_or("", |a| a.string_repr()),
-            self.octave.to_string()
+            self.octave
         )
     }
 }
@@ -179,7 +179,7 @@ impl Distribution<Note> for Standard {
         Note {
             white_key: rand::random(),
             accidental: Accidental::maybe_rand(),
-            octave: rng.gen_range(0..=9),
+            octave: rng.gen_range(3..=7),
         }
     }
 }

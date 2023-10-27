@@ -128,8 +128,7 @@ pub async fn fetch_game(pool: &Pool<Sqlite>, game_id: i64) -> Result<game::Game,
         .map(|row: SqliteRow| {
             let accidental = row
                 .get::<Option<&str>, _>("note_octave")
-                .map(|s| theory::Accidental::from(s))
-                .flatten();
+                .and_then(theory::Accidental::from);
 
             let note_to_guess = theory::Note {
                 white_key: theory::WhiteKey::from(row.get::<&str, _>("note_white_key")).unwrap(),
