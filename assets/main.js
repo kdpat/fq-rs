@@ -6,15 +6,12 @@ const socket = new WebSocket("ws://localhost:4000/ws");
 socket.onopen = event => {
   console.log("ws connected:", event);
 }
-
 socket.onmessage = event => {
   console.log("msg recv:", event);
 }
-
 socket.onclose = event => {
   console.log("ws closed:", event);
 }
-
 socket.onerror = event => {
   console.error("ws error:", event);
 }

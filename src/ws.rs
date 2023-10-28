@@ -49,23 +49,12 @@ enum WsMessage {
     StartGame { user_id: u64 },
 }
 
-// #[derive(Debug, serde::Deserialize)]
-// #[serde(tag = "type")]
-// struct StartGameMsg {
-//     foo: String,
-// }
-
 fn process_message(msg: Message, who: SocketAddr) -> ControlFlow<(), ()> {
     match msg {
         Message::Text(t) => {
             println!(">>> {} sent str: {:?}", who, t);
             let v: WsMessage = serde_json::from_str(t.as_str()).unwrap();
             println!("ws msg: {:?}", v);
-            // let v: StartGameMsg = serde_json::from_str(t.as_str()).unwrap();
-            // match serde_json::from_str(t.as_str()).unwrap() {
-            //     msg: StartGameMsg => { println!("yep"); },
-            //     _ => { println!("heyyooo"); }
-            // }
         }
         Message::Binary(d) => {
             println!(">>> {} sent {} bytes: {:?}", who, d.len(), d);
