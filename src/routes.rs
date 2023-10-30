@@ -7,11 +7,11 @@ use axum::response::Redirect;
 use axum::{headers, TypedHeader};
 use futures::{sink::SinkExt, stream::StreamExt};
 use sqlx::{Error, Pool, Sqlite};
-use tower_sessions::Session;
 use std::borrow::Cow;
 use std::net::SocketAddr;
 use std::ops::ControlFlow;
 use tower_cookies::{Cookie, Cookies};
+use tower_sessions::Session;
 
 #[derive(Template)]
 #[template(path = "index.html")]

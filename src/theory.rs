@@ -2,9 +2,10 @@ use rand::{
     distributions::{Distribution, Standard},
     Rng,
 };
-use std::fmt;
+use serde::{Deserialize, Serialize};
+use std::{fmt, str};
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum Accidental {
     DoubleFlat,
     Flat,
@@ -15,44 +16,56 @@ pub enum Accidental {
 
 impl Accidental {
     fn semitone_offset(&self) -> i32 {
-        match &self {
-            Accidental::DoubleFlat => -2,
-            Accidental::Flat => -1,
-            Accidental::Natural => 0,
-            Accidental::Sharp => 1,
-            Accidental::DoubleSharp => 2,
+        match self {
+            Self::DoubleFlat => -2,
+            Self::Flat => -1,
+            Self::Natural => 0,
+            Self::Sharp => 1,
+            Self::DoubleSharp => 2,
         }
     }
 
     fn maybe_rand() -> Option<Accidental> {
-        let mut rng = rand::thread_rng();
-        let f: f64 = rng.gen();
+        let rand: f64 = rand::random();
 
-        if f < 0.5 {
+        if rand < 0.5 {
             None
         } else {
             Some(rand::random())
         }
     }
+}
 
-    fn string_repr(&self) -> &str {
-        match &self {
-            Accidental::DoubleFlat => "bb",
-            Accidental::Flat => "b",
-            Accidental::Natural => "n",
-            Accidental::Sharp => "#",
-            Accidental::DoubleSharp => "##",
-        }
+impl fmt::Display for Accidental {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::DoubleFlat => "bb",
+                Self::Flat => "b",
+                Self::Natural => "n",
+                Self::Sharp => "#",
+                Self::DoubleSharp => "##",
+            }
+        )
     }
+}
 
-    pub fn from(s: &str) -> Option<Accidental> {
+#[derive(Debug, PartialEq, Eq)]
+pub struct ParseAccidentalError;
+
+impl str::FromStr for Accidental {
+    type Err = ParseAccidentalError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "bb" => Some(Accidental::DoubleFlat),
-            "b" => Some(Accidental::Flat),
-            "n" => Some(Accidental::Natural),
-            "#" => Some(Accidental::Sharp),
-            "##" => Some(Accidental::DoubleSharp),
-            _ => None,
+            "bb" => Ok(Self::DoubleFlat),
+            "b" => Ok(Self::Flat),
+            "n" => Ok(Self::Natural),
+            "#" => Ok(Self::Sharp),
+            "##" => Ok(Self::DoubleSharp),
+            _ => Err(ParseAccidentalError),
         }
     }
 }
@@ -69,7 +82,7 @@ impl Distribution<Accidental> for Standard {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum WhiteKey {
     C,
     D,
@@ -83,26 +96,13 @@ pub enum WhiteKey {
 impl WhiteKey {
     fn semitones_from_c(&self) -> i32 {
         match &self {
-            WhiteKey::C => 0,
-            WhiteKey::D => 2,
-            WhiteKey::E => 4,
-            WhiteKey::F => 5,
-            WhiteKey::G => 7,
-            WhiteKey::A => 9,
-            WhiteKey::B => 11,
-        }
-    }
-
-    pub fn from(s: &str) -> Option<WhiteKey> {
-        match s {
-            "C" => Some(WhiteKey::C),
-            "D" => Some(WhiteKey::D),
-            "E" => Some(WhiteKey::E),
-            "F" => Some(WhiteKey::F),
-            "G" => Some(WhiteKey::G),
-            "A" => Some(WhiteKey::A),
-            "B" => Some(WhiteKey::B),
-            _ => None,
+            Self::C => 0,
+            Self::D => 2,
+            Self::E => 4,
+            Self::F => 5,
+            Self::G => 7,
+            Self::A => 9,
+            Self::B => 11,
         }
     }
 }
@@ -110,6 +110,26 @@ impl WhiteKey {
 impl fmt::Display for WhiteKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ParseWhiteKeyError;
+
+impl str::FromStr for WhiteKey {
+    type Err = ParseWhiteKeyError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "C" => Ok(Self::C),
+            "D" => Ok(Self::D),
+            "E" => Ok(Self::E),
+            "F" => Ok(Self::F),
+            "G" => Ok(Self::G),
+            "A" => Ok(Self::A),
+            "B" => Ok(Self::B),
+            _ => Err(ParseWhiteKeyError),
+        }
     }
 }
 
@@ -129,7 +149,7 @@ impl Distribution<WhiteKey> for Standard {
 
 type Octave = i32;
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Note {
     pub white_key: WhiteKey,
     pub octave: Octave,
@@ -140,21 +160,22 @@ pub struct Note {
 
 impl Note {
     fn pitch_class(&self) -> i32 {
-        let offset = &self.accidental.as_ref().map_or(0, |a| a.semitone_offset());
-        self.white_key.semitones_from_c() + offset
+        let acc_offset = &self.accidental.as_ref().map_or(0, |a| a.semitone_offset());
+        self.white_key.semitones_from_c() + acc_offset
     }
 
     fn midi_num(&self) -> i32 {
         self.pitch_class() + 12 * (self.octave + 1)
     }
 
-    fn is_enharmonic_with(&self, other: Note) -> bool {
+    fn is_enharmonic(&self, other: Note) -> bool {
         self.midi_num() == other.midi_num()
     }
 
+    // TODO
     pub fn rand_in_range(low_midi: i32, high_midi: i32) -> Note {
         let mut note: Note = rand::random();
-        let mut midi: i32 = note.midi_num();
+        let mut midi = note.midi_num();
 
         while midi < low_midi || midi > high_midi {
             note = rand::random();
@@ -163,14 +184,16 @@ impl Note {
 
         note
     }
+}
 
-    pub fn string_repr(&self) -> String {
-        format!(
-            "{}{}/{}",
-            self.white_key,
-            self.accidental.as_ref().map_or("", |a| a.string_repr()),
-            self.octave
-        )
+impl fmt::Display for Note {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let accidental = self
+            .accidental
+            .as_ref()
+            .map_or(String::from(""), |a| a.to_string());
+
+        write!(f, "{}{}/{}", self.white_key, accidental, self.octave)
     }
 }
 
@@ -184,7 +207,7 @@ impl Distribution<Note> for Standard {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FretCoord {
     pub string: i32,
     pub fret: i32,
@@ -197,4 +220,27 @@ pub struct Fretboard {
     tuning: Tuning,
     start_fret: i32,
     end_fret: i32,
+}
+
+#[cfg(test)]
+mod test {
+    use crate::theory::*;
+    use std::str::FromStr;
+
+    #[tokio::test]
+    async fn test_parse_note() {
+        let c_double_sharp = Note {
+            white_key: WhiteKey::C,
+            accidental: Some(Accidental::DoubleSharp),
+            octave: 4,
+        };
+
+        let e_double_flat = Note {
+            white_key: WhiteKey::E,
+            accidental: Some(Accidental::DoubleFlat),
+            octave: 4,
+        };
+
+        assert!(c_double_sharp.is_enharmonic(e_double_flat));
+    }
 }

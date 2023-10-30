@@ -23,6 +23,7 @@ pub async fn upgrade_ws(
     ws.on_upgrade(move |socket| ws_callback(socket, addr))
 }
 
+// runs async for each connection
 async fn ws_callback(mut socket: WebSocket, who: SocketAddr) {
     if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
         println!("Pinged {}...", who);

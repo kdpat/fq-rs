@@ -7,7 +7,7 @@ use std::net::SocketAddr;
 use tower::ServiceBuilder;
 use tower_cookies::CookieManagerLayer;
 use tower_http::services::ServeDir;
-use tower_http::trace::{DefaultMakeSpan, TraceLayer};
+// use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use tower_sessions::{MemoryStore, SessionManagerLayer};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -30,22 +30,19 @@ async fn main() {
 
     let pool = fq::create_db_pool(DB_FILENAME).await.unwrap();
 
-    // fq::user::ensure_users_table(&pool).await.unwrap();
-    // fq::game::db::ensure_games_tables(&pool).await.unwrap();
-
     let cwd = std::env::current_dir().unwrap();
     let assets_path = format!("{}/assets", cwd.to_str().unwrap());
     let assets_service = ServeDir::new(assets_path);
 
+    let error_layer = HandleErrorLayer::new(|_: BoxError| async { StatusCode::BAD_REQUEST });
+
+    let session_layer = SessionManagerLayer::new(MemoryStore::default())
+        .with_secure(false)
+        .with_max_age(time::Duration::seconds(10));
+
     let session_service = ServiceBuilder::new()
-        .layer(HandleErrorLayer::new(|_: BoxError| async {
-            StatusCode::BAD_REQUEST
-        }))
-        .layer(
-            SessionManagerLayer::new(MemoryStore::default())
-                .with_secure(false)
-                .with_max_age(time::Duration::seconds(10)),
-        );
+        .layer(error_layer)
+        .layer(session_layer);
 
     let router = Router::new()
         .route("/", get(routes::index_page))
@@ -54,7 +51,7 @@ async fn main() {
         // .route("/games/:id", get(routes::game_page))
         .route("/ws", get(ws::upgrade_ws))
         .nest_service("/assets", assets_service)
-        // .layer(CookieManagerLayer::new())
+        .layer(CookieManagerLayer::new())
         .layer(session_service)
         // .layer(trace_layer)
         .with_state(pool);
