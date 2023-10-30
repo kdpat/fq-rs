@@ -5,10 +5,10 @@ use fq::{routes, ws};
 use hyper::StatusCode;
 use std::net::SocketAddr;
 use tower::ServiceBuilder;
-use tower_cookies::CookieManagerLayer;
+// use tower_cookies::CookieManagerLayer;
 use tower_http::services::ServeDir;
 // use tower_http::trace::{DefaultMakeSpan, TraceLayer};
-use tower_sessions::{MemoryStore, SessionManagerLayer};
+use tower_sessions::{SessionManagerLayer, SqliteStore};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
@@ -36,9 +36,12 @@ async fn main() {
 
     let error_layer = HandleErrorLayer::new(|_: BoxError| async { StatusCode::BAD_REQUEST });
 
-    let session_layer = SessionManagerLayer::new(MemoryStore::default())
+    let session_store = SqliteStore::new(pool.clone());
+    session_store.migrate().await.unwrap();
+
+    let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
-        .with_max_age(time::Duration::seconds(10));
+        .with_max_age(time::Duration::days(1));
 
     let session_service = ServiceBuilder::new()
         .layer(error_layer)
@@ -46,12 +49,12 @@ async fn main() {
 
     let router = Router::new()
         .route("/", get(routes::index_page))
-        // .route("/users/:id", get(routes::user_page))
+        .route("/users/:id", get(routes::user_page))
         // .route("/games", post(routes::handle_game_create))
         // .route("/games/:id", get(routes::game_page))
         .route("/ws", get(ws::upgrade_ws))
         .nest_service("/assets", assets_service)
-        .layer(CookieManagerLayer::new())
+        // .layer(CookieManagerLayer::new())
         .layer(session_service)
         // .layer(trace_layer)
         .with_state(pool);
