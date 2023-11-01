@@ -1,4 +1,4 @@
-use crate::user::{self, UserId};
+use crate::user::{self, User, UserId};
 use askama_axum::{IntoResponse, Response};
 use axum::extract::{FromRequestParts, State};
 use axum::http::request::Parts;
@@ -6,21 +6,50 @@ use axum::http::StatusCode;
 use axum::{async_trait, Json, RequestPartsExt, TypedHeader};
 use headers::authorization::Bearer;
 use headers::Authorization;
+use jsonwebtoken::errors::Error;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::{Pool, Sqlite};
 use std::fmt::{self, Display};
+use tower_cookies::cookie::SameSite;
 use tower_cookies::{Cookie, Cookies};
 
 pub const USER_COOKIE: &str = "_fq_user";
+const SECRET: &str = "secret";
 
 pub static KEYS: Lazy<Keys> = Lazy::new(|| {
     // let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
-    let secret = "secret";
-    Keys::new(secret.as_bytes())
+    Keys::new(SECRET.as_bytes())
 });
+
+pub fn make_user_token(user: &User) -> jsonwebtoken::errors::Result<String> {
+    let claims = Claims {
+        sub: user.id,
+        name: user.name.clone(),
+        exp: 2_000_000_000,
+    };
+    encode(&Header::default(), &claims, &KEYS.encoding)
+}
+
+pub fn make_user_cookie(token: String) -> Cookie<'static> {
+    Cookie::build(USER_COOKIE, token)
+        .same_site(SameSite::Lax)
+        .path("/")
+        .finish()
+}
+
+pub fn decode_user_token(token: &str) -> Result<Claims, Error> {
+    decode::<Claims>(token, &KEYS.decoding, &Validation::default()).map(|data| data.claims)
+}
+
+pub fn decode_user_cookie(cookies: &Cookies) -> Result<Claims, Error> {
+    match cookies.get(USER_COOKIE) {
+        Some(cookie) => decode_user_token(cookie.value()),
+        _ => Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into()),
+    }
+}
 
 pub async fn authorize(
     State(pool): State<Pool<Sqlite>>,
@@ -28,20 +57,19 @@ pub async fn authorize(
 ) -> Result<Json<AuthBody>, AuthError> {
     match cookies.get(USER_COOKIE) {
         None => {
-            let user_id = user::create_user(&pool).await.unwrap().last_insert_rowid();
+            let user_id = user::create_user(&pool)
+                .await
+                .map_err(|_| AuthError::TokenCreation)?
+                .last_insert_rowid();
 
-            let claims = Claims {
-                sub: user_id,
+            let user = User {
+                id: user_id,
                 name: user::DEFAULT_USERNAME.to_string(),
-                exp: 2_000_000_000,
             };
 
-            let token = encode(&Header::default(), &claims, &KEYS.encoding)
-                .map_err(|_| AuthError::TokenCreation)?;
-
-            let cookie = Cookie::new(USER_COOKIE, token.clone());
+            let token = make_user_token(&user).map_err(|_| AuthError::TokenCreation)?;
+            let cookie = make_user_cookie(token.clone());
             cookies.add(cookie);
-
             Ok(Json(AuthBody::new(token)))
         }
         Some(cookie) => {

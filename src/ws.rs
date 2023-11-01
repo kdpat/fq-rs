@@ -45,9 +45,8 @@ async fn ws_callback(mut socket: WebSocket, who: SocketAddr) {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "type")]
 enum WsMessage {
-    StartGame { user_id: u64 },
+    StartGame { token: String },
 }
 
 fn process_message(msg: Message, who: SocketAddr) -> ControlFlow<(), ()> {

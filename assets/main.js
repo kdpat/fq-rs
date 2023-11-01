@@ -1,6 +1,15 @@
 import {Staff} from "./staff.js";
 import {Fretboard} from "./fretboard.js";
 
+/**
+ * https://stackoverflow.com/questions/10730362/get-cookie-by-name
+ */
+function getCookie(name) {
+  function escape(s) { return s.replace(/([.*+?^$(){}|\[\]\/\\])/g, '\\$1'); }
+  const match = document.cookie.match(RegExp('(?:^|;\\s*)' + escape(name) + '=([^;]*)'));
+  return match ? match[1] : null;
+}
+
 async function fetchToken() {
   const response = await fetch("/auth", {
     method: "GET",
@@ -10,26 +19,32 @@ async function fetchToken() {
   return response.json();
 }
 
-fetchToken()
-  .then(data => {
-    console.log("token:", data)
-  })
-  .catch(err => console.error("err:", err));
+const USER_COOKIE = "_fq_user";
+let TOKEN = getCookie(USER_COOKIE);
 
-// const socket = new WebSocket("ws://localhost:4000/ws");
-//
-// socket.onopen = event => {
-//   console.log("ws connected:", event);
-// }
-// socket.onmessage = event => {
-//   console.log("msg recv:", event);
-// }
-// socket.onclose = event => {
-//   console.log("ws closed:", event);
-// }
-// socket.onerror = event => {
-//   console.error("ws error:", event);
-// }
+if (TOKEN == null) {
+  fetchToken()
+    .then(data => {
+      TOKEN = data.token;
+      console.log("token recv:", TOKEN)
+    })
+    .catch(err => console.error("err:", err));
+}
+
+const socket = new WebSocket("ws://localhost:4000/ws");
+
+socket.onopen = event => {
+  console.log("ws connected:", event);
+}
+socket.onmessage = event => {
+  console.log("msg recv:", event);
+}
+socket.onclose = event => {
+  console.log("ws closed:", event);
+}
+socket.onerror = event => {
+  console.error("ws error:", event);
+}
 
 let noteToDraw;
 
@@ -57,7 +72,7 @@ const startGameBtn = document.querySelector("#start-game-btn");
 if (startGameBtn) {
   startGameBtn.onclick = () => {
     socket.send(
-      JSON.stringify({type: "StartGame", user_id: 42})
+      JSON.stringify({"StartGame": {"token": TOKEN}})
     );
   };
 }

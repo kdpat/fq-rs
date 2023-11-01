@@ -5,4 +5,11 @@
 {% block content %}
 <h2>User {{ id }}</h2>
 <p>Hello {{ name }}</p>
+
+<form action="/user/name" method="post">
+  <label for="name">Name:</label>
+  <input type="text" id="name" name="name" placeholder="{{ name }}" required />
+  <br />
+  <button type="submit">Submit</button>
+</form>
 {% endblock %}

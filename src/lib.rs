@@ -12,8 +12,6 @@ pub mod ws;
 
 pub async fn create_db_pool(filename: &str) -> Result<Pool<Sqlite>, Error> {
     let opts = SqliteConnectOptions::new().filename(filename);
-    // .create_if_missing(true);
-
     SqlitePool::connect_with(opts).await
 }
 

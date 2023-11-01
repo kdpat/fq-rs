@@ -24,3 +24,15 @@ pub async fn fetch_user(pool: &Pool<Sqlite>, id: UserId) -> Result<User, Error> 
         .fetch_one(pool)
         .await
 }
+
+pub async fn update_username(
+    pool: &Pool<Sqlite>,
+    id: UserId,
+    new_name: &str,
+) -> Result<SqliteQueryResult, Error> {
+    sqlx::query("UPDATE users set name = ? where id = ?;")
+        .bind(new_name)
+        .bind(id)
+        .execute(pool)
+        .await
+}

@@ -5,7 +5,7 @@ use rand::{
 use serde::{Deserialize, Serialize};
 use std::{fmt, str};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub enum Accidental {
     DoubleFlat,
     Flat,
@@ -82,7 +82,7 @@ impl Distribution<Accidental> for Standard {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub enum WhiteKey {
     C,
     D,
@@ -149,7 +149,7 @@ impl Distribution<WhiteKey> for Standard {
 
 type Octave = i32;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub struct Note {
     pub white_key: WhiteKey,
     pub octave: Octave,

@@ -1,6 +1,6 @@
 pub mod db;
 
-use crate::theory;
+use crate::theory::{self, FretCoord, Note};
 use crate::user::UserId;
 
 use serde::{Deserialize, Serialize};
@@ -22,7 +22,7 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(host_id: UserId) -> Game {
+    pub fn new(host_id: UserId) -> Self {
         Game {
             id: None,
             host_id: Some(host_id),
@@ -31,6 +31,15 @@ impl Game {
             rounds: vec![],
             player_ids: vec![host_id],
         }
+    }
+
+    pub fn curr_note_to_guess(&self) -> Option<Note> {
+        self.rounds.last().map(|r| r.note_to_guess)
+    }
+
+    pub fn start(&mut self) -> () {
+        self.status = Status::Playing;
+        self.rounds.push(Round::new());
     }
 }
 
@@ -48,6 +57,12 @@ impl Opts {
             start_fret: 0,
             end_fret: 4,
         }
+    }
+}
+
+impl Default for Opts {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -69,20 +84,20 @@ impl fmt::Display for Status {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Guess {
     user_id: Option<i64>,
-    clicked_fret: theory::FretCoord,
+    clicked_fret: FretCoord,
     is_correct: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Round {
-    pub note_to_guess: theory::Note,
+    pub note_to_guess: Note,
     pub guesses: Vec<Guess>,
 }
 
 impl Round {
     fn new() -> Round {
         Round {
-            note_to_guess: theory::Note::rand_in_range(40, 68),
+            note_to_guess: Note::rand_in_range(40, 68),
             guesses: vec![],
         }
     }
