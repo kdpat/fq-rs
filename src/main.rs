@@ -1,10 +1,13 @@
 use axum::routing::{get, post};
 use axum::Router;
 use fq::{auth, routes, ws};
+use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
 use tower_cookies::CookieManagerLayer;
 use tower_http::services::ServeDir;
 // use tower_http::trace::{DefaultMakeSpan, TraceLayer};
+use fq::app_state::AppState;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
@@ -24,11 +27,15 @@ async fn main() {
     // let span = DefaultMakeSpan::default().include_headers(true);
     // let trace_layer = TraceLayer::new_for_http().make_span_with(span);
 
-    let pool = fq::create_db_pool(DB_FILENAME).await.unwrap();
-
     let cwd = std::env::current_dir().unwrap();
     let assets_path = format!("{}/assets", cwd.to_str().unwrap());
     let assets_service = ServeDir::new(assets_path);
+
+    let pool = fq::create_db_pool(DB_FILENAME).await.unwrap();
+    let app_state = Arc::new(AppState {
+        pool,
+        rooms: Mutex::new(HashMap::new()),
+    });
 
     let router = Router::new()
         .route("/", get(routes::index_page))
@@ -42,7 +49,7 @@ async fn main() {
         .nest_service("/assets", assets_service)
         .layer(CookieManagerLayer::new())
         // .layer(trace_layer)
-        .with_state(pool);
+        .with_state(app_state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], PORT));
     tracing::debug!("listening on {}", addr);

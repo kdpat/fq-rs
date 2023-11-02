@@ -1,17 +1,20 @@
+use crate::app_state::AppState;
 use askama_axum::IntoResponse;
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
-use axum::extract::{ConnectInfo, WebSocketUpgrade};
+use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
 use axum::TypedHeader;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::Value;
 use std::borrow::Cow;
 use std::net::SocketAddr;
 use std::ops::ControlFlow;
+use std::sync::Arc;
 
 pub async fn upgrade_ws(
     ws: WebSocketUpgrade,
-    user_agent: Option<TypedHeader<headers::UserAgent>>,
+    State(state): State<Arc<AppState>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    user_agent: Option<TypedHeader<headers::UserAgent>>,
 ) -> impl IntoResponse {
     let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
         user_agent.to_string()
@@ -20,25 +23,25 @@ pub async fn upgrade_ws(
     };
 
     println!("`{user_agent}` at {addr} connected.");
-    ws.on_upgrade(move |socket| ws_callback(socket, addr))
+    ws.on_upgrade(move |socket| ws_callback(socket, state, addr))
 }
 
 /// runs async for each connection
-async fn ws_callback(mut socket: WebSocket, who: SocketAddr) {
+async fn ws_callback(mut socket: WebSocket, state: Arc<AppState>, addr: SocketAddr) {
     if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
-        println!("Pinged {}...", who);
+        println!("Pinged {}...", addr);
     } else {
-        println!("Could not send ping {}!", who);
+        println!("Could not send ping {}!", addr);
         return;
     }
 
     while let Some(msg) = socket.recv().await {
         if let Ok(msg) = msg {
-            if process_message(msg, who).is_break() {
+            if process_message(msg, addr).is_break() {
                 return;
             }
         } else {
-            println!("client {who} abruptly disconnected");
+            println!("client {addr} abruptly disconnected");
             return;
         }
     }

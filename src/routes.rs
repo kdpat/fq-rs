@@ -1,3 +1,4 @@
+use crate::app_state::AppState;
 use crate::{
     auth::{self, Claims},
     game::{self, Game, GameId},
@@ -16,6 +17,7 @@ use std::borrow::Cow;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::ops::ControlFlow;
+use std::sync::Arc;
 use tower_cookies::cookie::SameSite;
 use tower_cookies::{Cookie, Cookies};
 use tower_sessions::Session;
@@ -52,11 +54,11 @@ pub struct UsernamePayload {
 
 pub async fn update_username(
     cookies: Cookies,
-    State(pool): State<Pool<Sqlite>>,
+    State(state): State<Arc<AppState>>,
     Form(payload): Form<UsernamePayload>,
 ) -> Redirect {
     if let Ok(claims) = auth::decode_user_cookie(&cookies) {
-        if user::update_username(&pool, claims.sub, &payload.name)
+        if user::update_username(&state.pool, claims.sub, &payload.name)
             .await
             .is_ok()
         {
@@ -97,10 +99,10 @@ impl From<Game> for GameTemplate {
 }
 
 pub async fn game_page(
-    State(pool): State<Pool<Sqlite>>,
     Path(game_id): Path<GameId>,
+    State(state): State<Arc<AppState>>,
 ) -> Result<GameTemplate, StatusCode> {
-    match game::db::fetch_game(&pool, game_id).await {
+    match game::db::fetch_game(&state.pool, game_id).await {
         Ok(game) => Ok(GameTemplate::from(game)),
         _ => Err(StatusCode::NOT_FOUND),
     }
@@ -108,14 +110,14 @@ pub async fn game_page(
 
 pub async fn handle_game_create(
     cookies: Cookies,
-    State(pool): State<Pool<Sqlite>>,
+    State(state): State<Arc<AppState>>,
 ) -> Result<Redirect, StatusCode> {
     match auth::decode_user_cookie(&cookies) {
         Ok(claims) => {
             let user_id = claims.sub;
             let game = Game::new(user_id);
 
-            if let Ok(game_id) = game::db::insert_game(&pool, game).await {
+            if let Ok(game_id) = game::db::insert_game(&state.pool, game).await {
                 let game_url = format!("/games/{}", game_id);
                 return Ok(Redirect::to(game_url.as_str()));
             }
@@ -129,14 +131,14 @@ pub async fn handle_game_create(
 pub async fn handle_game_start(
     cookies: Cookies,
     Path(game_id): Path<GameId>,
-    State(pool): State<Pool<Sqlite>>,
+    State(state): State<Arc<AppState>>,
 ) {
     if let Ok(claims) = auth::decode_user_cookie(&cookies) {
-        if let Ok(mut game) = game::db::fetch_game(&pool, game_id).await {
+        if let Ok(mut game) = game::db::fetch_game(&state.pool, game_id).await {
             if let Some(host_id) = game.host_id {
                 if claims.sub == host_id {
                     game.start();
-                    if let Ok(_) = game::db::update_game(&pool, game).await {
+                    if game::db::update_game(&state.pool, game).await.is_ok() {
                         tracing::debug!("game started: {}", game_id);
                     }
                 }

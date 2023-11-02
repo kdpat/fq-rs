@@ -3,6 +3,7 @@
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{Error, Pool, Sqlite, SqlitePool};
 
+pub mod app_state;
 pub mod auth;
 pub mod game;
 pub mod routes;

@@ -1,3 +1,4 @@
+use crate::app_state::AppState;
 use crate::user::{self, User, UserId};
 use askama_axum::{IntoResponse, Response};
 use axum::extract::{FromRequestParts, State};
@@ -13,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::{Pool, Sqlite};
 use std::fmt::{self, Display};
+use std::sync::Arc;
 use tower_cookies::cookie::SameSite;
 use tower_cookies::{Cookie, Cookies};
 
@@ -52,12 +54,12 @@ pub fn decode_user_cookie(cookies: &Cookies) -> Result<Claims, Error> {
 }
 
 pub async fn authorize(
-    State(pool): State<Pool<Sqlite>>,
     cookies: Cookies,
+    State(state): State<Arc<AppState>>,
 ) -> Result<Json<AuthBody>, AuthError> {
     match cookies.get(USER_COOKIE) {
         None => {
-            let user_id = user::create_user(&pool)
+            let user_id = user::create_user(&state.pool)
                 .await
                 .map_err(|_| AuthError::TokenCreation)?
                 .last_insert_rowid();
