@@ -13,9 +13,9 @@ pub struct Room {
 }
 
 impl Room {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
-            tx: broadcast::channel(64).0,
+            tx: broadcast::channel(16).0,
         }
     }
 }

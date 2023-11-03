@@ -37,12 +37,18 @@ pub struct UserTemplate {
     name: String,
 }
 
+impl From<User> for UserTemplate {
+    fn from(user: User) -> Self {
+        Self {
+            id: user.id,
+            name: user.name,
+        }
+    }
+}
+
 pub async fn user_page(cookies: Cookies) -> Result<UserTemplate, Redirect> {
     match auth::decode_user_cookie(&cookies) {
-        Ok(claims) => Ok(UserTemplate {
-            id: claims.sub,
-            name: claims.name,
-        }),
+        Some(user) => Ok(UserTemplate::from(user)),
         _ => Err(Redirect::to("/")),
     }
 }
@@ -57,16 +63,15 @@ pub async fn update_username(
     State(state): State<Arc<AppState>>,
     Form(payload): Form<UsernamePayload>,
 ) -> Redirect {
-    if let Ok(claims) = auth::decode_user_cookie(&cookies) {
-        if user::update_username(&state.pool, claims.sub, &payload.name)
+    if let Some(user) = auth::decode_user_cookie(&cookies) {
+        if user::update_username(&state.pool, user.id, &user.name)
             .await
             .is_ok()
         {
             let user = User {
-                id: claims.sub,
                 name: payload.name,
+                ..user
             };
-
             let token = auth::make_user_token(&user).unwrap();
             let cookie = auth::make_user_cookie(token);
             cookies.add(cookie);
@@ -90,7 +95,7 @@ impl From<Game> for GameTemplate {
             id: game.id.unwrap(),
             status: game.status.to_string(),
             note: game
-                .curr_note_to_guess()
+                .current_note_to_guess()
                 .map(|n| n.to_string())
                 .unwrap_or_default(),
             player_ids: game.player_ids.iter().map(|id| id.to_string()).collect(),
@@ -113,9 +118,8 @@ pub async fn handle_game_create(
     State(state): State<Arc<AppState>>,
 ) -> Result<Redirect, StatusCode> {
     match auth::decode_user_cookie(&cookies) {
-        Ok(claims) => {
-            let user_id = claims.sub;
-            let game = Game::new(user_id);
+        Some(user) => {
+            let game = Game::new(user.id);
 
             if let Ok(game_id) = game::db::insert_game(&state.pool, game).await {
                 let game_url = format!("/games/{}", game_id);
@@ -133,10 +137,10 @@ pub async fn handle_game_start(
     Path(game_id): Path<GameId>,
     State(state): State<Arc<AppState>>,
 ) {
-    if let Ok(claims) = auth::decode_user_cookie(&cookies) {
+    if let Some(user) = auth::decode_user_cookie(&cookies) {
         if let Ok(mut game) = game::db::fetch_game(&state.pool, game_id).await {
             if let Some(host_id) = game.host_id {
-                if claims.sub == host_id {
+                if user.id == host_id {
                     game.start();
                     if game::db::update_game(&state.pool, game).await.is_ok() {
                         tracing::debug!("game started: {}", game_id);
@@ -146,23 +150,3 @@ pub async fn handle_game_start(
         }
     }
 }
-
-// pub async fn handle_game_start(
-//     Path(game_id): Path<i64>,
-//     State(pool): State<Pool<Sqlite>>,
-//     cookies: Cookies,
-// ) -> Result<impl IntoResponse, StatusCode> {
-//     match get_user_cookie(&cookies) {
-//         Some(user_id) => {
-//             let mut game = fetch_game(&pool, game_id).await.unwrap();
-//
-//             if user_id == game.host_id.unwrap() {
-//                 game.status = Status::Playing;
-//                 Ok(Redirect::to("/"))
-//             } else {
-//                 Err(StatusCode::UNAUTHORIZED)
-//             }
-//         }
-//         _ => Err(StatusCode::EXPECTATION_FAILED),
-//     }
-// }

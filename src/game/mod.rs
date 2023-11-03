@@ -33,11 +33,11 @@ impl Game {
         }
     }
 
-    pub fn curr_note_to_guess(&self) -> Option<Note> {
+    pub fn current_note_to_guess(&self) -> Option<Note> {
         self.rounds.last().map(|r| r.note_to_guess)
     }
 
-    pub fn start(&mut self) -> () {
+    pub fn start(&mut self) {
         self.status = Status::Playing;
         self.rounds.push(Round::new());
     }

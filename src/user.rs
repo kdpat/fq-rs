@@ -1,3 +1,4 @@
+use crate::auth::Claims;
 use sqlx::sqlite::SqliteQueryResult;
 use sqlx::{Error, Pool, Sqlite};
 
@@ -9,6 +10,15 @@ pub const DEFAULT_USERNAME: &str = "user";
 pub struct User {
     pub id: UserId,
     pub name: String,
+}
+
+impl From<Claims> for User {
+    fn from(claims: Claims) -> Self {
+        Self {
+            id: claims.sub,
+            name: claims.name.clone(),
+        }
+    }
 }
 
 pub async fn create_user(pool: &Pool<Sqlite>) -> Result<SqliteQueryResult, Error> {

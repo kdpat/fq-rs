@@ -18,13 +18,12 @@ use std::sync::Arc;
 use tower_cookies::cookie::SameSite;
 use tower_cookies::{Cookie, Cookies};
 
-pub const USER_COOKIE: &str = "_fq_user";
-const SECRET: &str = "secret";
+const USER_COOKIE: &str = "_fq_user";
 
-pub static KEYS: Lazy<Keys> = Lazy::new(|| {
-    // let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
-    Keys::new(SECRET.as_bytes())
-});
+const SECRET: &str = "secret";
+// let SECRET = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+
+pub static KEYS: Lazy<Keys> = Lazy::new(|| Keys::new(SECRET.as_bytes()));
 
 pub fn make_user_token(user: &User) -> jsonwebtoken::errors::Result<String> {
     let claims = Claims {
@@ -42,15 +41,15 @@ pub fn make_user_cookie(token: String) -> Cookie<'static> {
         .finish()
 }
 
-pub fn decode_user_token(token: &str) -> Result<Claims, Error> {
+fn decode_user_token(token: &str) -> Result<Claims, Error> {
     decode::<Claims>(token, &KEYS.decoding, &Validation::default()).map(|data| data.claims)
 }
 
-pub fn decode_user_cookie(cookies: &Cookies) -> Result<Claims, Error> {
-    match cookies.get(USER_COOKIE) {
-        Some(cookie) => decode_user_token(cookie.value()),
-        _ => Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into()),
-    }
+pub fn decode_user_cookie(cookies: &Cookies) -> Option<User> {
+    cookies
+        .get(USER_COOKIE)
+        .and_then(|cookie| decode_user_token(cookie.value()).ok())
+        .map(User::from)
 }
 
 pub async fn authorize(
@@ -72,6 +71,7 @@ pub async fn authorize(
             let token = make_user_token(&user).map_err(|_| AuthError::TokenCreation)?;
             let cookie = make_user_cookie(token.clone());
             cookies.add(cookie);
+
             Ok(Json(AuthBody::new(token)))
         }
         Some(cookie) => {
@@ -171,9 +171,3 @@ pub enum AuthError {
     TokenCreation,
     InvalidToken,
 }
-
-// #[derive(Debug, Deserialize)]
-// pub struct AuthPayload {
-//     pub client_id: String,
-//     pub client_username: String,
-// }
