@@ -27,7 +27,7 @@ async function fetchToken() {
  */
 export const TOKEN = getCookie(USER_COOKIE) || fetchToken()
   .then(data => {
-    console.log("token recv:", data.token);
+    console.log("token recv:", data);
     return data.token;
   })
   .catch(e => console.error("error fetching token:", e));

@@ -23,7 +23,7 @@ const USER_COOKIE: &str = "_fq_user";
 const SECRET: &str = "secret";
 // let SECRET = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
 
-pub static KEYS: Lazy<Keys> = Lazy::new(|| Keys::new(SECRET.as_bytes()));
+static KEYS: Lazy<Keys> = Lazy::new(|| Keys::new(SECRET.as_bytes()));
 
 pub fn make_user_token(user: &User) -> jsonwebtoken::errors::Result<String> {
     let claims = Claims {

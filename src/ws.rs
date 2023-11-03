@@ -23,7 +23,7 @@ pub async fn upgrade_ws(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> Result<Response, StatusCode> {
     if let Some(user) = auth::decode_user_cookie(&cookies) {
-        println!("{addr} connected to ws");
+        println!("{:?} at {addr} connected to ws", &user);
         Ok(ws.on_upgrade(move |socket| ws_callback(socket, state, addr, user)))
     } else {
         Err(StatusCode::UNAUTHORIZED)
@@ -52,10 +52,12 @@ async fn ws_callback(mut socket: WebSocket, state: Arc<AppState>, addr: SocketAd
                 }
             };
 
-            channel = msg.channel.clone();
-            let mut rooms = state.rooms.lock().unwrap();
-            let room = rooms.entry(msg.channel).or_insert_with(Room::new);
-            tx = Some(room.tx.clone());
+            {
+                channel = msg.channel.clone();
+                let mut rooms = state.rooms.lock().unwrap();
+                let room = rooms.entry(msg.channel).or_insert_with(Room::new);
+                tx = Some(room.tx.clone());
+            }
 
             if tx.is_some() {
                 break;
@@ -106,32 +108,6 @@ struct ConnectMessage {
     token: String,
     channel: String,
 }
-
-// async fn ws_callback(mut socket: WebSocket, state: Arc<AppState>, addr: SocketAddr) {
-// if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
-//     println!("Pinged {}...", addr);
-// } else {
-//     println!("Could not send ping {}!", addr);
-//     return;
-// }
-//
-// while let Some(msg) = socket.recv().await {
-//     if let Ok(msg) = msg {
-//         if process_message(msg, addr).is_break() {
-//             return;
-//         }
-//     } else {
-//         println!("client {addr} abruptly disconnected");
-//         return;
-//     }
-// }
-// }
-
-// #[derive(Debug, serde::Serialize, serde::Deserialize)]
-// enum WsMessage {
-//     Connect { token: String },
-//     StartGame { token: String },
-// }
 
 fn process_message(msg: Message, who: SocketAddr) -> ControlFlow<(), ()> {
     match msg {
@@ -204,3 +180,23 @@ fn process_message(msg: Message, who: SocketAddr) -> ControlFlow<(), ()> {
 //     }
 //     n_msg
 // });
+
+// async fn ws_callback(mut socket: WebSocket, state: Arc<AppState>, addr: SocketAddr) {
+// if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
+//     println!("Pinged {}...", addr);
+// } else {
+//     println!("Could not send ping {}!", addr);
+//     return;
+// }
+//
+// while let Some(msg) = socket.recv().await {
+//     if let Ok(msg) = msg {
+//         if process_message(msg, addr).is_break() {
+//             return;
+//         }
+//     } else {
+//         println!("client {addr} abruptly disconnected");
+//         return;
+//     }
+// }
+// }

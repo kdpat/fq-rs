@@ -2,12 +2,16 @@ import {TOKEN} from "./token.js";
 import {Staff} from "./staff.js";
 import {Fretboard} from "./fretboard.js";
 
-function getPathEnd() {
-  const parts = location.pathname.split("/");
+/**
+ * Return the last part of the path.
+ * getPathEnd("/games/42") === "42"
+ */
+function getPathEnd(pathname) {
+  const parts = pathname.split("/");
   return parts[parts.length - 1];
 }
 
-const GAME_ID = getPathEnd();
+const GAME_ID = getPathEnd(location.pathname);
 if (!GAME_ID) throw new Error("could not extract game id from path");
 
 let socket;
@@ -60,8 +64,7 @@ if (fbContainer) {
 const startGameBtn = document.querySelector("#start-game-btn");
 if (startGameBtn) {
   startGameBtn.onclick = () => {
-    socket.send(
-      JSON.stringify({"StartGame": {token: TOKEN}})
-    );
+    const msg = {StartGame: {token: TOKEN}};
+    socket.send(JSON.stringify(msg));
   };
 }
