@@ -16,12 +16,14 @@ if (!GAME_ID) throw new Error("could not extract game id from path");
 
 let socket;
 
+const connectMsg = (token, channel) => JSON.stringify({token, channel});
+
 if (TOKEN) {
   socket = new WebSocket("ws://localhost:4000/ws");
 
   socket.onopen = event => {
     console.log("ws connected:", event);
-    socket.send(JSON.stringify({token: TOKEN, channel: GAME_ID}));
+    socket.send(connectMsg(TOKEN, GAME_ID));
   }
   socket.onmessage = event => {
     console.log("msg recv:", event);
@@ -64,7 +66,7 @@ if (fbContainer) {
 const startGameBtn = document.querySelector("#start-game-btn");
 if (startGameBtn) {
   startGameBtn.onclick = () => {
-    const msg = {StartGame: {token: TOKEN}};
+    const msg = {StartGame: {token: TOKEN, game_id: parseInt(GAME_ID)}};
     socket.send(JSON.stringify(msg));
   };
 }

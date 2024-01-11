@@ -1,14 +1,11 @@
 const USER_COOKIE = "_fq_user";
 
 /**
- * John S
+ * edited from John S
  * https://stackoverflow.com/questions/10730362/get-cookie-by-name
  */
 function getCookie(name) {
-  function escape(s) {
-    return s.replace(/([.*+?^$(){}|\[\]\/\\])/g, '\\$1');
-  }
-
+  const escape = str => str.replace(/([.*+?^$(){}|\[\]\/\\])/g, '\\$1');
   const match = document.cookie.match(RegExp('(?:^|;\\s*)' + escape(name) + '=([^;]*)'));
   return match ? match[1] : null;
 }

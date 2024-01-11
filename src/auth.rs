@@ -41,7 +41,7 @@ pub fn make_user_cookie(token: String) -> Cookie<'static> {
         .finish()
 }
 
-fn decode_user_token(token: &str) -> Result<Claims, Error> {
+pub fn decode_user_token(token: &str) -> Result<Claims, Error> {
     decode::<Claims>(token, &KEYS.decoding, &Validation::default()).map(|data| data.claims)
 }
 
